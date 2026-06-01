@@ -1,0 +1,58 @@
+# Example PEDBench-style substitution inventory encoded as CMU/ARPAbet phones.
+# Replace/extend these pairs if you have the exact PEDBench Table 6 pair list.
+vowels:
+  - [AE, EH]
+  - [EH, AE]
+  - [IH, IY]
+  - [IY, IH]
+  - [UW, UH]
+  - [UH, UW]
+consonants:
+  - [DH, D]
+  - [Z, S]
+  - [TH, S]
+  - [V, F]
+  - [R, W]
+  - [G, D]
+  - [L, W]
+  - [JH, CH]
+  - [S, TH]
+  - [T, K]
+  - [CH, SH]
+  - [D, G]
+  - [Y, L]
+  - [SH, S]
+  - [P, B]
+  - [K, T]
+  - [B, P]
+  - [M, N]
+  - [N, M]
+  - [NG, N]
+  - [F, TH]
+  - [W, R]
+  - [HH, F]
+consonant_phones:
+  - B
+  - CH
+  - D
+  - DH
+  - F
+  - G
+  - HH
+  - JH
+  - K
+  - L
+  - M
+  - N
+  - NG
+  - P
+  - R
+  - S
+  - SH
+  - T
+  - TH
+  - V
+  - W
+  - Y
+  - Z
+  - ZH

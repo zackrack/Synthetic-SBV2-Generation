@@ -1,0 +1,3 @@
+word: "{word}"
+sentence: "Please say the word {word} again."
+passage: "The speaker looked at the word {word}, said it clearly, and then continued reading the sentence."

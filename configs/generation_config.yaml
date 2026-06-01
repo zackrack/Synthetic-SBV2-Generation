@@ -1,0 +1,13 @@
+model_assets_dir: "model_assets"
+model_name: null
+model_file: null
+language: "EN"
+device: "cpu"
+speaker_id: 0
+style: "Neutral"
+style_weight: 2.0
+sdp_ratio: 0.4
+noise: 0.667
+noise_w: 0.8
+length: 1.0
+line_split: false
