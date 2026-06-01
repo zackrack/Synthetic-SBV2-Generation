@@ -249,3 +249,128 @@ For quick guide, please refer to `webui_preprocess.py`.
 </a>
 
 [//]: # (# 本项目所有代码引用均已写明，bert部分代码思路来源于[AI峰哥]&#40;https://www.bilibili.com/video/BV1w24y1c7z9&#41;，与[vits_chinese]&#40;https://github.com/PlayVoice/vits_chinese&#41;无任何关系。欢迎各位查阅代码。同时，我们也对该开发者的[碰瓷，乃至开盒开发者的行为]&#40;https://www.bilibili.com/read/cv27101514/&#41;表示强烈谴责。)
+
+## Synthetic PEDBench-style phonetic-error generation with Style-BERT-VITS2
+
+This repository includes a self-contained pipeline for generating synthetic English utterances with controlled phonetic errors, modeled after the PEDBench synthetic-data procedure but using Style-BERT-VITS2 direct phone control instead of Amazon Polly or SSML.
+
+The key design point is that the orthographic `text_prompt` remains normal text because Style-BERT-VITS2 requires text, while `sbv2_phone_input` is treated as the source of truth for the intended realized pronunciation. For example, a written prompt can still contain `thank` while the phone sequence encodes a `/TH/ -> /S/` realization.
+
+### Pipeline overview
+
+The generator:
+
+1. Reads one target word per line from `configs/gfta_words.txt`.
+2. Looks up a canonical CMU/ARPAbet-style pronunciation in `configs/pronunciations.dict`.
+3. Iterates over every phone position in the canonical sequence.
+4. Creates one-phone substitution variants from `configs/error_inventory.yaml`.
+5. Creates deletion variants for targets in the configured consonant set.
+6. Deduplicates identical modified phone sequences for the same word.
+7. Renders word, sentence, and passage contexts from `configs/context_templates.yaml`.
+8. Converts modified CMU/ARPAbet phones through `configs/phone_mapping.yaml` into Style-BERT-VITS2-compatible phone symbols.
+9. Optionally synthesizes audio through `synthetic_ped.sbv2_synth.synthesize_with_sbv2()` using both normal text and `given_phone` / `given_tone`.
+10. Writes `manifest.jsonl`, `metadata.csv`, copied configs, logs, and optional review manifests under the output directory.
+
+The default target-word file is a placeholder one-word-per-line articulation list. Replace it with your authorized GFTA word list if you need the exact 60 Goldman-Fristoe targets. The default error inventory is an editable PEDBench-style example encoded as CMU/ARPAbet phones; replace or extend it if you have a project-specific Table 6 transcription.
+
+### Dry run
+
+Dry-run mode builds the complete manifest and metadata without loading a Style-BERT-VITS2 model or writing audio:
+
+```bash
+python scripts/generate_synthetic_ped.py \
+  --words configs/gfta_words.txt \
+  --pronunciations configs/pronunciations.dict \
+  --error-inventory configs/error_inventory.yaml \
+  --phone-mapping configs/phone_mapping.yaml \
+  --context-templates configs/context_templates.yaml \
+  --generation-config configs/generation_config.yaml \
+  --output-dir synthetic_ped_data \
+  --speaker-id 0 \
+  --style Neutral \
+  --dry-run
+```
+
+### Full synthesis
+
+After configuring `configs/generation_config.yaml` for your local Style-BERT-VITS2 model assets, omit `--dry-run`:
+
+```bash
+python scripts/generate_synthetic_ped.py \
+  --output-dir synthetic_ped_data \
+  --speaker-id 0 \
+  --style Neutral \
+  --resume
+```
+
+The SBV2 boundary is isolated in `synthetic_ped/sbv2_synth.py`. It calls the local `TTSModelHolder` / `TTSModel.infer()` interface with:
+
+- `text`: the normal written word, sentence, or passage;
+- `given_phone`: the configured SBV2-compatible phone sequence for the intended erroneous pronunciation;
+- `given_tone`: a same-length zero-tone vector by default, or a configured vector if supplied.
+
+If a phone cannot be mapped from CMU/ARPAbet to an SBV2 symbol, the row is marked failed and synthesis is skipped; mappings are never guessed silently.
+
+### Validation and review
+
+Run structural validation on an existing manifest:
+
+```bash
+python scripts/generate_synthetic_ped.py \
+  --output-dir synthetic_ped_data \
+  --error-inventory configs/error_inventory.yaml \
+  --validate-only
+```
+
+Create a human phonetic-review CSV:
+
+```bash
+python scripts/generate_synthetic_ped.py \
+  --output-dir synthetic_ped_data \
+  --make-review-manifest
+```
+
+After reviewers fill `reviewer_decision` with values such as `accept`, filter accepted rows:
+
+```bash
+python scripts/generate_synthetic_ped.py \
+  --output-dir synthetic_ped_data \
+  --filter-accepted synthetic_ped_data/review_manifest.csv
+```
+
+
+### Local browser UI
+
+If you prefer not to use the CLI directly, install Gradio and launch the local-only app:
+
+```bash
+pip install gradio
+python apps/synthetic_ped_gradio.py
+```
+
+Alternatively:
+
+```bash
+python scripts/run_synthetic_ped_app.py
+```
+
+The app exposes the same core generation options as the CLI, calls the shared `run_generation()` pipeline, shows row counts and output paths, and previews the first generated audio files when synthesis succeeds. Public sharing is disabled by default; the app binds to `127.0.0.1`.
+
+### Output layout
+
+```text
+synthetic_ped_data/
+  manifest.jsonl
+  metadata.csv
+  review_manifest.csv
+  accepted_manifest.jsonl
+  accepted_metadata.csv
+  audio/
+    word/
+    sentence/
+    passage/
+  configs/
+  logs/
+```
+
+Each row records the source word, context, normal text prompt, canonical phones, modified phones, optional IPA strings, edit type, target position, target and replacement phones, SBV2 phone input, audio path, speaker/style/model information, generation status, validation status, and notes.

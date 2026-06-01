@@ -41,6 +41,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+synthetic-ped-ui = [
+    "gradio",
+]
 torch = [
     "accelerate",
     "torch>=2.1",
