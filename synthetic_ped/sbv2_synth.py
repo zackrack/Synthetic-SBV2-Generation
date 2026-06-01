@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import wave
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +13,18 @@ class GenerationResult:
     audio_path: Path
     sample_rate: int | None = None
     notes: str = ""
+
+
+@dataclass(frozen=True)
+class ModelSelection:
+    model_info: Any | None = None
+    notes: str = ""
+
+
+SYNTHETIC_PED_MODEL_SETUP_NOTE = (
+    "For the default English synthetic PED config, install an English/non-JP-Extra "
+    "SBV2 model by running `python initialize.py --only_infer`."
+)
 
 
 def synthesize_with_sbv2(

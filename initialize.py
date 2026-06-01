@@ -96,9 +96,23 @@ def download_default_models():
                 )
 
 
+def download_synthetic_ped_model():
+    files = ["config.json", "rikka_botan_english.safetensors", "style_vectors.npy"]
+    local_path = Path("model_assets/rikka_botan_english")
+    for file in files:
+        if not Path(local_path).joinpath(file).exists():
+            logger.info(f"Downloading synthetic PED English model {file}")
+            hf_hub_download(
+                "RikkaBotan/style_bert_vits2_english_original",
+                file,
+                local_dir=local_path,
+            )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--skip_default_models", action="store_true")
+    parser.add_argument("--skip_synthetic_ped_model", action="store_true")
     parser.add_argument("--only_infer", action="store_true")
     parser.add_argument(
         "--dataset_root",
@@ -118,6 +132,8 @@ def main():
 
     if not args.skip_default_models:
         download_default_models()
+        if not args.skip_synthetic_ped_model:
+            download_synthetic_ped_model()
     if not args.only_infer:
         download_slm_model()
         download_pretrained_models()
