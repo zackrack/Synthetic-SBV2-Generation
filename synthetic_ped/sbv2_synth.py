@@ -73,19 +73,22 @@ def synthesize_with_sbv2(
         return GenerationResult(
             "failed", output_path, notes=f"no SBV2 models found in {model_assets_dir}"
         )
-
-    selection = select_compatible_model(holder.models_info, model_name, language_name)
-    if selection.model_info is None:
-        return GenerationResult("failed", output_path, notes=selection.notes)
-    model_info = selection.model_info
-    model_name = model_info.name
-
+    if model_name is None:
+        model_info = holder.models_info[0]
+        model_name = model_info.name
+    else:
+        matches = [info for info in holder.models_info if info.name == model_name]
+        if not matches:
+            return GenerationResult(
+                "failed", output_path, notes=f"SBV2 model not found: {model_name}"
+            )
+        model_info = matches[0]
     if model_file is None:
         files = [
             f
             for f in model_info.files
             if (f.endswith(".safetensors") or f.endswith(".onnx"))
-            and not Path(f).name.startswith(".")
+            and not f.startswith(".")
         ]
         if not files:
             return GenerationResult(
@@ -118,59 +121,6 @@ def synthesize_with_sbv2(
         return GenerationResult(
             "failed", output_path, notes=f"SBV2 synthesis failed: {exc}"
         )
-
-
-def select_compatible_model(
-    models_info: list[Any], model_name: Any | None, language_name: str
-) -> ModelSelection:
-    if model_name is not None:
-        matches = [info for info in models_info if info.name == model_name]
-        if not matches:
-            return ModelSelection(notes=f"SBV2 model not found: {model_name}")
-        model_info = matches[0]
-        if not is_model_compatible_with_language(model_info, language_name):
-            return ModelSelection(
-                notes=(
-                    f"SBV2 model {model_name} is JP-Extra and cannot synthesize "
-                    f"language {language_name}. {SYNTHETIC_PED_MODEL_SETUP_NOTE}"
-                )
-            )
-        return ModelSelection(model_info=model_info)
-
-    compatible_models = [
-        info
-        for info in models_info
-        if is_model_compatible_with_language(info, language_name)
-    ]
-    if compatible_models:
-        return ModelSelection(model_info=compatible_models[0])
-
-    return ModelSelection(
-        notes=(
-            f"no SBV2 models compatible with language {language_name} found. "
-            f"JP-Extra models only support JP. {SYNTHETIC_PED_MODEL_SETUP_NOTE}"
-        )
-    )
-
-
-def is_model_compatible_with_language(model_info: Any, language_name: str) -> bool:
-    if language_name == "JP":
-        return True
-    return not _model_version_endswith_jp_extra(model_info)
-
-
-def _model_version_endswith_jp_extra(model_info: Any) -> bool:
-    config_path = _model_config_path(model_info)
-    if config_path is None or not config_path.exists():
-        return False
-    config = json.loads(config_path.read_text(encoding="utf-8"))
-    return str(config.get("version", "")).endswith("JP-Extra")
-
-
-def _model_config_path(model_info: Any) -> Path | None:
-    if not getattr(model_info, "files", None):
-        return None
-    return Path(model_info.files[0]).parent / "config.json"
 
 
 def _write_wav(path: Path, sample_rate: int, audio_data: Any) -> None:
